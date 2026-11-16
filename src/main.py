@@ -3,6 +3,8 @@ from datetime import datetime
 import logging
 import random
 import string
+from models.first_five_model import FirstFiveModel
+
 logger = logging.getLogger(__name__)
 
 # BalatroBot API endpoint
@@ -33,11 +35,11 @@ def rpc(method: str, params: dict = {}) -> dict:
         raise Exception(data["error"]["message"])
     return data["result"]
 
-def play_game():
+def play_game(model):
     """Play a complete game of Balatro."""
     # Enable logging
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    log_filename = f"./logs/{timestamp}.log"
+    log_filename = f"../logs/{timestamp}.log"
     logging.basicConfig(filename=log_filename, level=logging.INFO)
     configureLogging(log_filename=log_filename)
     logger.info('Started Game')
@@ -63,7 +65,8 @@ def play_game():
                 # Play the first 5 cards (simple strategy)
                 num_cards = min(5, len(state["hand"]["cards"]))
                 cards = list(range(num_cards))
-                state = rpc("play", {"cards": cards})
+                next_move = model.get_next_move(state)
+                state = rpc("play", next_move)
 
             case "ROUND_EVAL":
                 # Collect rewards and go to shop
@@ -89,14 +92,18 @@ def play_game():
     logger.info('Game End')
     return state["won"]
 
-def train_bot(game_count: int):
+def train_bot(model, game_count: int):
     logger.info('Started training')
     
     for i in range(0, game_count):
         # Train a run here
-        play_game()
+        play_game(model=model)
         
     logger.info('Ended training')
 
 if __name__ == "__main__":
-    train_bot(100_000)
+    model = FirstFiveModel(isTraining=False)
+    #model = GreedyModel()
+    #model = JokerModel()
+    train_bot(model=model, game_count=100_000)
+    
